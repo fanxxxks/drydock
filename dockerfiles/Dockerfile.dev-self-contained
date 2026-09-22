@@ -1,0 +1,47 @@
+#
+# Builder
+#
+
+FROM golang:alpine as builder
+
+# use version (for example "v0.3.3") or "main"
+ARG WATCHTOWER_VERSION=main
+
+# Pre download required modules to avoid redownloading at each build thanks to docker layer caching.
+# Copying go.mod and go.sum ensure to invalid the layer/build cache if there is a change in module requirement
+WORKDIR /drydock
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+RUN apk add --no-cache \
+    alpine-sdk \
+    ca-certificates \
+    git \
+    tzdata
+
+COPY . /drydock
+
+RUN \
+  cd /drydock && \
+  \
+  GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build -a -ldflags "-extldflags '-static' -X github.com/drydock-updater/drydock/internal/meta.Version=$(git describe --tags)" . && \
+  GO111MODULE=on go test ./... -v
+
+
+#
+# drydock
+#
+
+FROM scratch
+
+LABEL "com.centurylinklabs.watchtower"="true"
+
+# copy files from other container
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /drydock/drydock /drydock
+
+HEALTHCHECK CMD [ "/drydock", "--health-check"]
+
+ENTRYPOINT ["/drydock"]

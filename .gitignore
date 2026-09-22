@@ -1,0 +1,19 @@
+watchtower
+watchtower.exe
+drydock
+drydock.exe
+vendor
+.glide
+dist
+.idea
+.DS_Store
+/site
+coverage.out
+*.coverprofile
+
+# local tooling / workspace leftovers
+.mimosa/
+oryxBuildBinary
+
+docs/assets/wasm_exec.js
+docs/assets/*.wasm
